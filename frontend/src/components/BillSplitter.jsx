@@ -64,6 +64,11 @@ const BillSplitter = () => {
       return;
     }
 
+    if (!amountPaid || parseFloat(amountPaid) <= 0) {
+      alert("Please enter a valid amount paid");
+      return;
+    }
+
     const validItems = items.filter(
       (item) => item.name.trim() && item.price > 0 && item.quantity > 0 && item.consumed_by.length > 0,
     );
@@ -79,7 +84,7 @@ const BillSplitter = () => {
       tax_rate: parseFloat(taxRate) / 100,
       service_charge: parseFloat(serviceCharge) / 100,
       items: validItems,
-      amount_paid: amountPaid ? parseFloat(amountPaid) : 0,
+      amount_paid: parseFloat(amountPaid),
     };
 
     if (editingBillId) {
