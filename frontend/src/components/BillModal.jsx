@@ -49,7 +49,7 @@ const BillModal = ({
 
   return (
     <div
-      className={`${show ? "block" : "hidden"} lg:block bg-white dark:bg-stone-900 border-2 border-gray-900 dark:border-gray-200 lg:h-full overflow-y-auto`}
+      className={`${show ? "block" : "hidden"} fixed inset-0 z-50 md:static md:z-auto bg-white dark:bg-stone-900 md:border-2 md:border-gray-900 dark:border-gray-200 h-full overflow-y-auto`}
     >
       <div className="border-b-2 border-gray-900 dark:border-gray-200 p-6 flex justify-between items-center">
         <h2 className="text-lg font-mono text-gray-900 dark:text-gray-100">
