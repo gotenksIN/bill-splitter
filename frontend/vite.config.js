@@ -11,4 +11,8 @@ export default defineConfig({
   plugins: [react()],
   // Read .env files from the parent directory (project root)
   envDir: path.resolve(__dirname, ".."),
+  test: {
+    globals: true,
+    environment: "jsdom",
+  },
 });
