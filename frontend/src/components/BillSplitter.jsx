@@ -18,9 +18,16 @@ const BillSplitter = () => {
   const [serviceCharge, setServiceCharge] = useState("0");
   const [items, setItems] = useState([{ id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
   const [amountPaid, setAmountPaid] = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -60,12 +67,12 @@ const BillSplitter = () => {
 
   const handleSaveBill = () => {
     if (!paidBy.trim()) {
-      alert("Please enter who paid the bill");
+      showToast("Please enter who paid the bill");
       return;
     }
 
     if (!amountPaid || parseFloat(amountPaid) <= 0) {
-      alert("Please enter a valid amount paid");
+      showToast("Please enter a valid amount paid");
       return;
     }
 
@@ -74,7 +81,7 @@ const BillSplitter = () => {
     );
 
     if (validItems.length === 0) {
-      alert("Please add at least one valid item with consumers");
+      showToast("Please add at least one valid item with consumers");
       return;
     }
 
@@ -155,10 +162,10 @@ const BillSplitter = () => {
       // populate amount paid from OCR response if available
       setAmountPaid(ocrData.amount_paid.toString());
 
-      alert("Receipt scanned! Please add who consumed each item.");
+      showToast("Receipt scanned! Please add who consumed each item.", "success");
     } catch (error) {
       console.error("OCR error:", error);
-      alert("Failed to scan receipt. Please try again.");
+      showToast("Failed to scan receipt. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -166,7 +173,7 @@ const BillSplitter = () => {
 
   const handleCalculateSplit = async () => {
     if (bills.length === 0) {
-      alert("Please add at least one bill");
+      showToast("Please add at least one bill");
       return;
     }
 
@@ -176,7 +183,7 @@ const BillSplitter = () => {
       setShowResults(true);
     } catch (error) {
       console.error("Split calculation error:", error);
-      alert("Failed to calculate split. Please try again.");
+      showToast("Failed to calculate split. Please try again.");
     }
   };
 
@@ -350,6 +357,12 @@ const BillSplitter = () => {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className={`fixed bottom-4 right-4 p-4 text-white font-mono z-[100] shadow-lg ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 };
