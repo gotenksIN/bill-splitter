@@ -55,6 +55,9 @@ def mock_gemini_client(monkeypatch: pytest.MonkeyPatch, response: Optional[Gemin
     Create a MockClient with `response`, patch `gemini_module.genai.Client` to
     return that instance, and return the instance for optional inspection.
     """
+    import app.services.gemini
+    app.services.gemini._client = None
+
     client_instance = MockGeminiClient(response)
 
     def mock_client_constructor(**kwargs: Any) -> MockGeminiClient:

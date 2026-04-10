@@ -71,6 +71,20 @@ GENERATE_CONTENT_CONFIG = types.GenerateContentConfig(
 )
 
 
+_client = None
+
+def get_client() -> Client:
+    global _client
+    if _client is None:
+        if settings.GEMINI_API_BASE:
+            _client = Client(
+                api_key=settings.GEMINI_API_KEY,
+                http_options=types.HttpOptions(base_url=settings.GEMINI_API_BASE),
+            )
+        else:
+            _client = Client(api_key=settings.GEMINI_API_KEY)
+    return _client
+
 def get_bill_details_from_image(image_bytes: bytes, mime_type: str) -> str:
     """
     Use Gemini API to extract bill details from an image.
@@ -78,13 +92,7 @@ def get_bill_details_from_image(image_bytes: bytes, mime_type: str) -> str:
     :param image_bytes: The image bytes of the bill
     :return: Extracted bill details as an OCRBill object
     """
-    if settings.GEMINI_API_BASE:
-        client = Client(
-            api_key=settings.GEMINI_API_KEY,
-            http_options=types.HttpOptions(base_url=settings.GEMINI_API_BASE),
-        )
-    else:
-        client = Client(api_key=settings.GEMINI_API_KEY)
+    client = get_client()
 
     model = settings.GEMINI_MODEL
     contents = [
