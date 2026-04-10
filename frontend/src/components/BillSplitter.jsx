@@ -16,7 +16,7 @@ const BillSplitter = () => {
   const [paidBy, setPaidBy] = useState("");
   const [taxRate, setTaxRate] = useState("5");
   const [serviceCharge, setServiceCharge] = useState("0");
-  const [items, setItems] = useState([{ name: "", price: 0, quantity: 1, consumed_by: [] }]);
+  const [items, setItems] = useState([{ id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
   const [amountPaid, setAmountPaid] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -30,7 +30,7 @@ const BillSplitter = () => {
     setPaidBy("");
     setTaxRate("5");
     setServiceCharge("0");
-    setItems([{ name: "", price: 0, quantity: 1, consumed_by: [] }]);
+    setItems([{ id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
     setAmountPaid("");
     setEditingBillId(null);
   };
@@ -98,7 +98,7 @@ const BillSplitter = () => {
   };
 
   const handleAddItem = () => {
-    setItems([...items, { name: "", price: 0, quantity: 1, consumed_by: [] }]);
+    setItems([...items, { id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
   };
 
   const handleDeleteItem = (index) => {
@@ -148,6 +148,7 @@ const BillSplitter = () => {
       setItems(
         ocrData.items.map((item) => ({
           ...item,
+          id: crypto.randomUUID(),
           consumed_by: [],
         })),
       );

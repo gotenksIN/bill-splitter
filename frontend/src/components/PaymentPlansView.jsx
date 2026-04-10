@@ -12,7 +12,7 @@ const PaymentPlansView = ({ paymentPlans }) => {
 
       <div className="p-6 space-y-6">
         {plansWithPayments.map((plan, index) => (
-          <PaymentPlanCard key={index} plan={plan} />
+          <PaymentPlanCard key={plan.name} plan={plan} />
         ))}
 
         <p className="text-xs text-gray-600 dark:text-gray-500 text-center pt-4 font-mono">

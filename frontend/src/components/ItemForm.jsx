@@ -48,7 +48,7 @@ const ItemForm = ({ item, index, onItemChange, onDelete, canDelete, onConsumerKe
           <div className="flex flex-wrap gap-2 mb-2">
             {item.consumed_by.map((consumer, cIndex) => (
               <span
-                key={cIndex}
+                key={consumer}
                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm border border-gray-300 dark:border-gray-700"
               >
                 {consumer}
