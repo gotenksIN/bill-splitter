@@ -14,3 +14,7 @@ updates:
       python-deps:
         patterns:
           - "*"
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "daily"
