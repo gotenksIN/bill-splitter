@@ -22,7 +22,7 @@ class Item(BaseModel):
 
     @field_validator("consumed_by", mode="after")
     @classmethod
-    def to_lower(cls, value):
+    def to_lower(cls, value: list[str]) -> list[str]:
         return [v.lower() for v in value]
 
 
@@ -35,7 +35,7 @@ class Bill(BaseModel):
 
     @field_validator("paid_by", mode="after")
     @classmethod
-    def to_lower(cls, value):
+    def to_lower(cls, value: str) -> str:
         return value.lower()
 
 
@@ -55,3 +55,13 @@ class PaymentPlan(BaseModel):
 
 class OutingSplit(BaseModel):
     payment_plans: list[PaymentPlan]
+
+
+class PersonBalance(BaseModel):
+    name: str
+    amount: float
+
+
+class OutingPaymentBalance(BaseModel):
+    creditors: list[PersonBalance]
+    debtors: list[PersonBalance]

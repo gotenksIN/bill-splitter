@@ -3,7 +3,7 @@ from collections import defaultdict
 from pydantic import BaseModel
 
 from app.core.settings import settings
-from app.schemas.bill import OCRBill, Outing, OutingSplit, Payment, PaymentPlan
+from app.schemas.bill import OCRBill, Outing, OutingPaymentBalance, OutingSplit, Payment, PaymentPlan, PersonBalance
 from app.services import gemini
 
 
@@ -19,16 +19,6 @@ def get_bill_details_from_image(image_bytes: bytes, mime_type: str) -> OCRBill:
         raise ValueError("API key is not set in settings for any LLM.")
 
     return OCRBill.model_validate_json(bill_data)
-
-
-class PersonBalance(BaseModel):
-    name: str
-    amount: float
-
-
-class OutingPaymentBalance(BaseModel):
-    creditors: list[PersonBalance]
-    debtors: list[PersonBalance]
 
 
 def calculate_balance(outing: Outing) -> OutingPaymentBalance:
@@ -64,7 +54,7 @@ def calculate_balance(outing: Outing) -> OutingPaymentBalance:
     creditors = []
     debtors = []
 
-    for key, value in dict(balance).items():
+    for key, value in balance.items():
         if value > 0:
             creditors.append(PersonBalance(name=key, amount=round(value, 2)))
         else:
