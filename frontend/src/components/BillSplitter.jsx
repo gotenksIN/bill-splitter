@@ -9,15 +9,9 @@ import { uploadReceipt, calculateSplit } from "../utils/api";
 const BillSplitter = () => {
   const [bills, setBills] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [editingBillId, setEditingBillId] = useState(null);
+  const [editingBill, setEditingBill] = useState(null);
   const [paymentPlans, setPaymentPlans] = useState([]);
   const [showResults, setShowResults] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [paidBy, setPaidBy] = useState("");
-  const [taxRate, setTaxRate] = useState("5");
-  const [serviceCharge, setServiceCharge] = useState("0");
-  const [items, setItems] = useState([{ id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
-  const [amountPaid, setAmountPaid] = useState("");
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "error") => {
@@ -25,29 +19,15 @@ const BillSplitter = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const resetForm = () => {
-    setPaidBy("");
-    setTaxRate("5");
-    setServiceCharge("0");
-    setItems([{ id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
-    setAmountPaid("");
-    setEditingBillId(null);
-  };
-
   const handleAddBill = () => {
+    setEditingBill(null);
     setShowModal(true);
     setShowResults(false);
     setPaymentPlans([]);
-    resetForm();
   };
 
   const handleEditBill = (bill) => {
-    setEditingBillId(bill.id);
-    setPaidBy(bill.paid_by);
-    setTaxRate((bill.tax_rate * 100).toString());
-    setServiceCharge((bill.service_charge * 100).toString());
-    setItems(bill.items);
-    setAmountPaid(bill.amount_paid != null ? String(bill.amount_paid) : "");
+    setEditingBill(bill);
     setShowModal(true);
     setShowResults(false);
     setPaymentPlans([]);
@@ -57,110 +37,14 @@ const BillSplitter = () => {
     setBills(bills.filter((b) => b.id !== id));
   };
 
-  const handleSaveBill = () => {
-    if (!paidBy.trim()) {
-      showToast("Please enter who paid the bill");
-      return;
-    }
-
-    if (!amountPaid || parseFloat(amountPaid) <= 0) {
-      showToast("Please enter a valid amount paid");
-      return;
-    }
-
-    const validItems = items.filter(
-      (item) => item.name.trim() && item.price > 0 && item.quantity > 0 && item.consumed_by.length > 0,
-    );
-
-    if (validItems.length === 0) {
-      showToast("Please add at least one valid item with consumers");
-      return;
-    }
-
-    const bill = {
-      id: editingBillId || Date.now().toString(),
-      paid_by: paidBy.trim(),
-      tax_rate: parseFloat(taxRate) / 100,
-      service_charge: parseFloat(serviceCharge) / 100,
-      items: validItems,
-      amount_paid: parseFloat(amountPaid),
-    };
-
-    if (editingBillId) {
-      setBills(bills.map((b) => (b.id === editingBillId ? bill : b)));
+  const handleSaveBill = (bill) => {
+    if (editingBill) {
+      setBills(bills.map((b) => (b.id === editingBill.id ? bill : b)));
     } else {
       setBills([...bills, bill]);
     }
-
     setShowModal(false);
-    resetForm();
-  };
-
-  const handleAddItem = () => {
-    setItems([...items, { id: crypto.randomUUID(), name: "", price: 0, quantity: 1, consumed_by: [] }]);
-  };
-
-  const handleDeleteItem = (index) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleItemChange = (index, field, value) => {
-    const newItems = [...items];
-    newItems[index][field] = value;
-    setItems(newItems);
-  };
-
-  const handleConsumerKeyDown = (index, e) => {
-    if (e.key === "Enter" && e.target.value.trim()) {
-      e.preventDefault();
-      const newItems = [...items];
-      const currentConsumers = newItems[index].consumed_by || [];
-      const newConsumer = e.target.value.trim();
-
-      if (!currentConsumers.includes(newConsumer)) {
-        newItems[index].consumed_by = [...currentConsumers, newConsumer];
-        setItems(newItems);
-      }
-      e.target.value = "";
-    }
-  };
-
-  const removeConsumer = (itemIndex, consumerName) => {
-    const newItems = [...items];
-    newItems[itemIndex].consumed_by = newItems[itemIndex].consumed_by.filter((c) => c !== consumerName);
-    setItems(newItems);
-  };
-
-  const handleUploadReceipt = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-
-    try {
-      const ocrData = await uploadReceipt(file);
-
-      setTaxRate((ocrData.tax_rate * 100).toString());
-      setServiceCharge((ocrData.service_charge * 100).toString());
-      setItems(
-        ocrData.items.map((item) => ({
-          ...item,
-          id: crypto.randomUUID(),
-          consumed_by: [],
-        })),
-      );
-      // populate amount paid from OCR response if available
-      setAmountPaid(ocrData.amount_paid.toString());
-
-      showToast("Receipt scanned! Please add who consumed each item.", "success");
-    } catch (error) {
-      console.error("OCR error:", error);
-      showToast("Failed to scan receipt. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
+    setEditingBill(null);
   };
 
   const handleCalculateSplit = async () => {
@@ -181,7 +65,7 @@ const BillSplitter = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    resetForm();
+    setEditingBill(null);
   };
 
   return (
@@ -231,25 +115,10 @@ const BillSplitter = () => {
             {showModal && (
               <BillModal
                 show={showModal}
-                editingBillId={editingBillId}
-                paidBy={paidBy}
-                setPaidBy={setPaidBy}
-                taxRate={taxRate}
-                setTaxRate={setTaxRate}
-                serviceCharge={serviceCharge}
-                setServiceCharge={setServiceCharge}
-                amountPaid={amountPaid}
-                setAmountPaid={setAmountPaid}
-                items={items}
-                isUploading={isUploading}
+                editingBill={editingBill}
                 onClose={handleCloseModal}
                 onSave={handleSaveBill}
-                onUploadReceipt={handleUploadReceipt}
-                onAddItem={handleAddItem}
-                onItemChange={handleItemChange}
-                onDeleteItem={handleDeleteItem}
-                onConsumerKeyDown={handleConsumerKeyDown}
-                onRemoveConsumer={removeConsumer}
+                showToast={showToast}
               />
             )}
             {showResults && (
