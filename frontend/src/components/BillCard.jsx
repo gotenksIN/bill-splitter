@@ -1,5 +1,6 @@
 import React from "react";
 import { Trash2 } from "lucide-react";
+import { formatCurrency } from "../utils/currency";
 
 const BillCard = ({ bill, onEdit, onDelete }) => {
   return (
@@ -8,7 +9,7 @@ const BillCard = ({ bill, onEdit, onDelete }) => {
         <div>
           <div className="text-xs text-gray-700 dark:text-gray-400 mb-1 font-mono tracking-wider">PAID BY</div>
           <h3 className="text-lg font-normal text-gray-900 dark:text-gray-100">{bill.paid_by}</h3>
-          <p className="text-base text-gray-900 dark:text-gray-100 font-mono mt-1">₹{bill.amount_paid.toFixed(2)}</p>
+          <p className="text-base text-gray-900 dark:text-gray-100 font-mono mt-1">{formatCurrency(bill.amount_paid)}</p>
         </div>
         <div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity duration-200">
           <button
@@ -41,7 +42,7 @@ const BillCard = ({ bill, onEdit, onDelete }) => {
             <span>
               {item.quantity} × {item.name}
             </span>
-            <span className="font-mono">₹{(item.price * item.quantity).toFixed(2)}</span>
+            <span className="font-mono">{formatCurrency(item.price * item.quantity)}</span>
           </div>
         ))}
       </div>
