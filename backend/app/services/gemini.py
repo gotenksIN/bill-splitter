@@ -3,25 +3,20 @@ from google.genai import Client, types
 from app.core.settings import settings
 
 BILL_OCR_PROMPT = """
-You are an expert at extracting information from bills and receipts.
-Your task is to analyze the provided image of a bill and extract the following information in JSON format:
+You are an expert at analyzing receipts and bills.
+Extract the details from the provided image into the requested structure.
 
-Extract a Bill object with the following structure:
-- items: A list of items, where each item contains:
-  - name: The name of the item (string, non-empty)
-  - price: The price of the item (float, must be positive, skip items with 0 price)
-  - quantity: The quantity ordered (integer, must be positive)
-- tax_rate: The tax rate applied to the bill as a decimal (float, between 0.0 and 1.0, default is 0.0 if not found)
-- service_charge: The service charge as a decimal (float, between 0.0 and 1.0, default is 0.0 if not found)
-- amount_paid: The final total amount that must be paid, after applying all tax, service charges and discounts (float, must be positive)
+Field Instructions:
+- items: Extract the individual line items ordered.
+  - name: The clean name of the item. Remove stray punctuation or leading bullets, but keep the original language/spelling.
+  - price: The unit price of the item. Do not include discounts or negative values as items. Skip items with a 0 price.
+  - quantity: The quantity ordered. If a quantity is not explicitly written, default to 1.
+- tax_rate: The tax rate applied to the bill as a decimal (e.g., 0.05 for 5%). If the bill only shows a flat tax amount, calculate the decimal rate by dividing the tax amount by the subtotal. Default to 0.0 if no tax is found.
+- service_charge: The service charge, tip, or gratuity as a decimal (e.g., 0.10 for 10%). Calculate this based on the subtotal if only a flat amount is shown. Default to 0.0 if not found.
+- discount_amount: If the bill includes a flat discount applied to the overall total, extract the positive discount amount here. Default to 0.0 if not found.
+- amount_paid: The final total amount on the receipt, after all taxes, service charges, and discounts are applied.
 
-Important notes:
-- Extract only the items that appear on the bill
-- Calculate tax_rate and service_charge from the bill if visible, otherwise use defaults
-- Ensure all extracted values match the specified types and constraints
-- Return the response as valid JSON that matches the Bill schema
-
-Please analyze the bill image and extract the information now.
+Analyze the bill image and extract the information accurately.
 """
 
 GENERATE_CONTENT_CONFIG = types.GenerateContentConfig(
