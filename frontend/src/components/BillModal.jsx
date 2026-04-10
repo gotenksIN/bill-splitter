@@ -157,7 +157,7 @@ const BillModal = ({
           <div className="space-y-4">
             {items.map((item, index) => (
               <ItemForm
-                key={index}
+                key={item.id || index}
                 item={item}
                 index={index}
                 onItemChange={onItemChange}

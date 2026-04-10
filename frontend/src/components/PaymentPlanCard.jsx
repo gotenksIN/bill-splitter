@@ -14,7 +14,7 @@ const PaymentPlanCard = ({ plan }) => {
       <div className="space-y-2">
         {plan.payments.map((payment, pIndex) => (
           <div
-            key={pIndex}
+            key={payment.to}
             className="flex items-center justify-between py-2 border-t-2 border-gray-300 dark:border-gray-700"
           >
             <span className="text-gray-800 dark:text-gray-200">→ {payment.to}</span>
