@@ -189,7 +189,10 @@ const BillModal = ({
           <button
             onClick={onClose}
             className="px-6 py-3 border-2 border-gray-400 dark:border-gray-600 text-gray-800 dark:text-gray-300 hover:border-gray-900 dark:hover:border-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          ></button>
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
