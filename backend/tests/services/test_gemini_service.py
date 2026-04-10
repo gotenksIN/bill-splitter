@@ -150,8 +150,7 @@ class TestGeminiClientConfiguration:
     def test_custom_configuration(
         self, monkeypatch: pytest.MonkeyPatch, custom_base_url: Optional[str], custom_model: Optional[str]
     ):
-        if custom_base_url:
-            monkeypatch.setattr("app.services.gemini.settings.GEMINI_API_BASE", custom_base_url)
+        monkeypatch.setattr("app.services.gemini.settings.GEMINI_API_BASE", custom_base_url)
         if custom_model:
             monkeypatch.setattr("app.services.gemini.settings.GEMINI_MODEL", custom_model)
         mock_client = mock_gemini_client(monkeypatch, self.success_response)
