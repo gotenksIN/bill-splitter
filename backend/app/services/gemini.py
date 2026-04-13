@@ -9,7 +9,7 @@ Extract the details from the provided image into the requested structure.
 Field Instructions:
 - items: Extract the individual line items ordered.
   - name: The clean name of the item. Remove stray punctuation or leading bullets, but keep the original language/spelling.
-  - price: The unit price of the item. Do not include discounts or negative values as items. Skip items with a 0 price.
+  - price: The unit price of the item. Do not include discounts or negative values as items. Skip items with a 0 price. Do not extract line item modifiers or add-ons as separate items if their price is already included in the parent item's total cost.
   - quantity: The quantity ordered. If a quantity is not explicitly written, default to 1.
 - tax_rate: The tax rate applied to the bill as a decimal (e.g., 0.05 for 5%). If the bill only shows a flat tax amount, calculate the decimal rate by dividing the tax amount by the subtotal. Default to 0.0 if no tax is found.
 - service_charge: The service charge, tip, or gratuity as a decimal (e.g., 0.10 for 10%). Calculate this based on the subtotal if only a flat amount is shown. Default to 0.0 if not found.
