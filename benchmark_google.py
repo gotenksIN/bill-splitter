@@ -47,6 +47,28 @@ Analyze the bill image and extract the information accurately.
 Return ONLY valid JSON. Do not include markdown formatting.
 """
 
+GOOGLE_RESPONSE_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        'tax_rate': types.Schema(type=types.Type.NUMBER),
+        'service_charge': types.Schema(type=types.Type.NUMBER),
+        'amount_paid': types.Schema(type=types.Type.NUMBER),
+        'items': types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    'name': types.Schema(type=types.Type.STRING),
+                    'price': types.Schema(type=types.Type.NUMBER),
+                    'quantity': types.Schema(type=types.Type.NUMBER),
+                },
+                required=['name', 'price', 'quantity'],
+            ),
+        ),
+    },
+    required=['items', 'amount_paid', 'tax_rate', 'service_charge'],
+)
+
 test_cases = [
     {
         "file": "6093552737913081148_121.jpg",
@@ -79,6 +101,7 @@ def run_benchmarks():
     
     google_config = types.GenerateContentConfig(
         response_mime_type="application/json",
+        response_schema=GOOGLE_RESPONSE_SCHEMA,
     )
 
     for model in google_models:

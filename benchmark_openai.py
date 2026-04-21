@@ -12,7 +12,7 @@ litellm.drop_params = True
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.environ.get('GEMINI_API_KEY')
+API_KEY = os.environ.get('OPENAI_API_KEY')
 
 pricing = {
     'gpt-4o': {'in': 2.50, 'out': 10.00},
@@ -70,6 +70,9 @@ class OCRBill(BaseModel):
     service_charge: float
     amount_paid: float
 
+
+OPENAI_RESPONSE_FORMAT = OCRBill
+
 test_cases = [
     {
         "file": "6093552737913081148_121.jpg",
@@ -126,19 +129,16 @@ def run_benchmarks():
                 start = time.time()
                 for attempt in range(3):
                     try:
-                        if model.startswith('o'):
-                            response = litellm.completion(
-                                model=model,
-                                messages=openai_messages,
-                                api_base=f"{os.environ.get('OPENAI_API_BASE')}/v1",
-                            )
-                        else:
-                            response = litellm.completion(
-                                model=model,
-                                messages=openai_messages,
-                                api_base=f"{os.environ.get('OPENAI_API_BASE')}/v1",
-                                response_format=OCRBill,
-                            )
+                        response_kwargs = {
+                            'model': model,
+                            'messages': openai_messages,
+                            'api_base': f"{os.environ.get('OPENAI_API_BASE')}/v1",
+                        }
+
+                        if not model.startswith('o'):
+                            response_kwargs['response_format'] = OPENAI_RESPONSE_FORMAT
+
+                        response = litellm.completion(**response_kwargs)
                         break
                     except Exception as e:
                         if attempt == 2:
