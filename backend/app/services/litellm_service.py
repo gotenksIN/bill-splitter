@@ -10,30 +10,20 @@ import base64
 from litellm import completion
 
 from app.core.settings import settings
-from app.schemas.bill import OCRBill
+from app.schemas.bill import LLMOCRBill
 
 BILL_OCR_PROMPT = """
-You are a highly precise receipt-parsing engine. Your task is to analyze the provided image of a receipt/bill and extract structured data matching the schema.
+You are a highly precise receipt-parsing engine. Extract structured data from the receipt image.
 
-### Core Rules:
-1. **Unit Price vs. Line Total:**
-   - **price** must be the **price of a single unit** (unit price).
-   - If the receipt displays a line-item total for multiple quantities (e.g., "3 Hot Dogs - $15.00"), you MUST calculate and return the price of a single unit (e.g., unit price = $5.00, quantity = 3).
-   - If the receipt only lists a single price next to an item without a quantity, default **quantity** to 1 and **price** to that price.
-2. **Numeric Values:**
-   - Strip all currency symbols (e.g., $, €, ₹, £) and formatting characters.
-   - Parse all floats and integers as pure numeric values.
-3. **Accuracy and Exclusions:**
-   - Remove leading bullets, line numbers, or stray punctuation from item names. Keep the original item language and spelling.
-   - Do NOT extract line-item modifiers, add-ons, or optional toppings (e.g., "Add Cheese - $0.00" or "No Onion") as separate items if their cost is already included in the parent item's price.
-   - Do NOT include negative price items, discounts, or vouchers as items in the `items` list. Skip any items with a 0.0 price.
-4. **Fees, Taxes, and Discounts:**
-   - **tax_rate:** Extract the tax rate applied to the bill as a decimal (e.g., 5.5% tax -> 0.055). If the receipt only lists a flat tax amount (e.g., "Tax: $2.50"), calculate the rate: `tax_amount / subtotal`.
-   - **service_charge:** Extract the service charge, gratuity, or tip rate as a decimal (e.g., 10% service charge -> 0.10). If only a flat tip/gratuity amount is listed, calculate the rate: `tip_amount / subtotal`.
-   - **discount_amount:** If there is an overall flat discount applied at the bottom of the bill (e.g., "-$10.00 Coupon" or "10% Discount"), extract the positive numeric value of the total discount amount here (e.g., 10.00). If no discount exists, use 0.0.
-   - **amount_paid:** This is the absolute final grand total at the bottom of the receipt that was actually paid, after all taxes, service charges, tips, and discounts have been applied.
-
-Please analyze the receipt image and extract the fields with maximum precision.
+Rules:
+1. **Raw Line Totals:** Extract the total line price and quantity for each ordered item. Do not do any unit price division math.
+2. **Numeric Values:** Strip currency symbols and formatting.
+3. **Exclusions:** Remove leading line numbers/bullets from item names. Skip items with 0 total price. Do not extract optional modifiers.
+4. **Fees, Taxes, and Discounts:** Extract raw flat amounts as displayed on the bill:
+   - **tax_amount:** The flat tax amount (e.g., 2.50). If no tax, use 0.0.
+   - **service_charge_amount:** The flat tip or gratuity/service charge amount (e.g., 5.00). If none, use 0.0.
+   - **discount_amount:** The total discount amount (e.g., 10.00). If none, use 0.0.
+   - **amount_paid:** The grand total amount actually paid.
 """
 
 
@@ -70,7 +60,7 @@ def get_bill_details_from_image(image_bytes: bytes, mime_type: str) -> str:
     kwargs: dict = {
         "model": settings.LITELLM_MODEL,
         "messages": messages,
-        "response_format": OCRBill,
+        "response_format": LLMOCRBill,
         "api_base": settings.LITELLM_API_BASE,
         "api_key": settings.LITELLM_API_KEY,
     }

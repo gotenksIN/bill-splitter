@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from pydantic import BaseModel
 
-from app.schemas.bill import OCRBill, Outing, OutingSplit, Payment, PaymentPlan
+from app.schemas.bill import OCRBill, OCRBillItem, LLMOCRBill, Outing, OutingSplit, Payment, PaymentPlan
 from app.services import litellm_service
 
 
@@ -12,9 +12,46 @@ def get_bill_details_from_image(image_bytes: bytes, mime_type: str) -> OCRBill:
         mime_type=mime_type,
     )
 
-    ocr_bill = OCRBill.model_validate_json(bill_data)
+    llm_bill = LLMOCRBill.model_validate_json(bill_data)
 
-    if getattr(ocr_bill, "discount_amount", 0.0) > 0:
+    # 1. Map raw line total prices back to unit prices
+    ocr_items = []
+    for item in llm_bill.items:
+        qty = item.quantity
+        unit_price = round(item.total_line_price / qty, 2) if qty > 0 else 0.0
+        ocr_items.append(
+            OCRBillItem(
+                name=item.name,
+                price=unit_price,
+                quantity=qty
+            )
+        )
+
+    # 2. Compute subtotal using raw line total prices extracted before discounts
+    raw_subtotal = sum(item.total_line_price for item in llm_bill.items)
+
+    # 3. Calculate tax_rate and service_charge decimal ratios using subtotal
+    if raw_subtotal > 0:
+        tax_rate = round(llm_bill.tax_amount / raw_subtotal, 4)
+        service_charge = round(llm_bill.service_charge_amount / raw_subtotal, 4)
+    else:
+        tax_rate = 0.0
+        service_charge = 0.0
+
+    # Ensure rates are clamped to valid ge=0.0, le=1.0 boundaries for Pydantic
+    tax_rate = max(0.0, min(1.0, tax_rate))
+    service_charge = max(0.0, min(1.0, service_charge))
+
+    ocr_bill = OCRBill(
+        items=ocr_items,
+        tax_rate=tax_rate,
+        service_charge=service_charge,
+        discount_amount=llm_bill.discount_amount,
+        amount_paid=llm_bill.amount_paid
+    )
+
+    # 4. Apply discount proportioning exactly as before
+    if ocr_bill.discount_amount > 0:
         subtotal = sum(item.price * item.quantity for item in ocr_bill.items)
         if subtotal > 0:
             discount_ratio = ocr_bill.discount_amount / subtotal

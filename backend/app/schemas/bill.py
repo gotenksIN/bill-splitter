@@ -15,6 +15,20 @@ class OCRBill(BaseModel):
     amount_paid: float = Field(gt=0.0)
 
 
+class LLMOCRBillItem(BaseModel):
+    name: str = Field(min_length=1)
+    total_line_price: float = Field(gt=0.0)
+    quantity: int = Field(gt=0)
+
+
+class LLMOCRBill(BaseModel):
+    items: list[LLMOCRBillItem]
+    tax_amount: float = Field(default=0.0, ge=0.0)
+    service_charge_amount: float = Field(default=0.0, ge=0.0)
+    discount_amount: float = Field(default=0.0, ge=0.0)
+    amount_paid: float = Field(gt=0.0)
+
+
 class Item(BaseModel):
     name: str = Field(min_length=1)
     price: float = Field(gt=0.0)

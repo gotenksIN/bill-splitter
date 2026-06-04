@@ -31,34 +31,32 @@ model_configs = {
         'thinking_level': 'low',
     },
     'models/gemini-3.5-flash': {
-        'thinking_level': 'low',
+        'thinking_level': 'minimal',
     },
 }
 
 print(f"Google models to benchmark: {google_models}")
 
 BILL_OCR_PROMPT = """
-You are an expert at analyzing receipts and bills.
-Extract the details from the provided image into the requested structure.
+You are a highly precise receipt-parsing engine. Extract structured data from the receipt image.
 
-Field Instructions:
-- items: Extract the individual line items ordered.
-  - name: The clean name of the item. Remove stray punctuation or leading bullets, but keep the original language/spelling.
-  - price: The unit price of the item. Do not include discounts or negative values as items. Skip items with a 0 price. Do not extract line item modifiers or add-ons as separate items if their price is already included in the parent item's total cost.
-  - quantity: The quantity ordered. If a quantity is not explicitly written, default to 1.
-- tax_rate: The tax rate applied to the bill as a decimal (e.g., 0.05 for 5%). If the bill only shows a flat tax amount, calculate the decimal rate by dividing the tax amount by the subtotal. Default to 0.0 if no tax is found.
-- service_charge: The service charge, tip, or gratuity as a decimal (e.g., 0.10 for 10%). Calculate this based on the subtotal if only a flat amount is shown. Default to 0.0 if not found.
-- amount_paid: The final total amount on the receipt, after all taxes, service charges, and discounts are applied.
-
-Analyze the bill image and extract the information accurately.
-Return ONLY valid JSON. Do not include markdown formatting.
+Rules:
+1. **Raw Line Totals:** Extract the total line price and quantity for each ordered item. Do not do any unit price division math.
+2. **Numeric Values:** Strip currency symbols and formatting.
+3. **Exclusions:** Remove leading line numbers/bullets from item names. Skip items with 0 total price. Do not extract optional modifiers.
+4. **Fees, Taxes, and Discounts:** Extract raw flat amounts as displayed on the bill:
+   - **tax_amount:** The flat tax amount (e.g., 2.50). If no tax, use 0.0.
+   - **service_charge_amount:** The flat tip or gratuity/service charge amount (e.g., 5.00). If none, use 0.0.
+   - **discount_amount:** The total discount amount (e.g., 10.00). If none, use 0.0.
+   - **amount_paid:** The grand total amount actually paid.
 """
 
 GOOGLE_RESPONSE_SCHEMA = types.Schema(
     type=types.Type.OBJECT,
     properties={
-        'tax_rate': types.Schema(type=types.Type.NUMBER),
-        'service_charge': types.Schema(type=types.Type.NUMBER),
+        'tax_amount': types.Schema(type=types.Type.NUMBER),
+        'service_charge_amount': types.Schema(type=types.Type.NUMBER),
+        'discount_amount': types.Schema(type=types.Type.NUMBER),
         'amount_paid': types.Schema(type=types.Type.NUMBER),
         'items': types.Schema(
             type=types.Type.ARRAY,
@@ -66,14 +64,14 @@ GOOGLE_RESPONSE_SCHEMA = types.Schema(
                 type=types.Type.OBJECT,
                 properties={
                     'name': types.Schema(type=types.Type.STRING),
-                    'price': types.Schema(type=types.Type.NUMBER),
+                    'total_line_price': types.Schema(type=types.Type.NUMBER),
                     'quantity': types.Schema(type=types.Type.NUMBER),
                 },
-                required=['name', 'price', 'quantity'],
+                required=['name', 'total_line_price', 'quantity'],
             ),
         ),
     },
-    required=['items', 'amount_paid', 'tax_rate', 'service_charge'],
+    required=['items', 'amount_paid', 'tax_amount', 'service_charge_amount', 'discount_amount'],
 )
 
 test_cases = [
@@ -195,7 +193,13 @@ def run_benchmarks():
 
                 data = json.loads(raw_text)
                 items = data.get('items', [])
-                actual_items = sorted([(float(i.get('price', 0)), int(i.get('quantity', 0))) for i in items])
+                actual_items = []
+                for i in items:
+                    qty = int(i.get('quantity', 1))
+                    total_p = float(i.get('total_line_price', 0))
+                    unit_p = round(total_p / qty, 2) if qty > 0 else 0.0
+                    actual_items.append((unit_p, qty))
+                actual_items = sorted(actual_items)
                 actual_amount = float(data.get('amount_paid', 0))
                 
                 if actual_items != tc['gt_items'] or actual_amount != tc['gt_amount']:
