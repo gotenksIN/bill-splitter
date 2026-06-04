@@ -12,7 +12,16 @@ def get_bill_details_from_image(image_bytes: bytes, mime_type: str) -> OCRBill:
         mime_type=mime_type,
     )
 
-    return OCRBill.model_validate_json(bill_data)
+    ocr_bill = OCRBill.model_validate_json(bill_data)
+
+    if getattr(ocr_bill, "discount_amount", 0.0) > 0:
+        subtotal = sum(item.price * item.quantity for item in ocr_bill.items)
+        if subtotal > 0:
+            discount_ratio = ocr_bill.discount_amount / subtotal
+            for item in ocr_bill.items:
+                item.price = round(item.price * (1 - discount_ratio), 2)
+
+    return ocr_bill
 
 
 class PersonBalance(BaseModel):

@@ -23,6 +23,7 @@ Extract a Bill object with the following structure:
   - quantity: The quantity ordered (integer, must be positive, at least 1)
 - tax_rate: The tax rate applied to the bill as a decimal (float, between 0.0 and 1.0, default is 0.0 if not found)
 - service_charge: The service charge as a decimal (float, between 0.0 and 1.0, default is 0.0 if not found)
+- discount_amount: If the bill includes a flat overall discount, extract the positive discount amount here (float, default is 0.0 if not found)
 - amount_paid: The final total amount that must be paid, after applying all tax, service charges and discounts (float, must be positive)
 
 Important notes:
