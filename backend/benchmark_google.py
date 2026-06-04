@@ -8,25 +8,32 @@ from google.genai import Client, types
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.environ.get('GEMINI_API_KEY')
+API_KEY = os.environ.get('LITELLM_API_KEY')
 
 pricing = {
-    'gemini-2.0-flash': {'in': 0.10, 'out': 0.40},
-    'gemini-2.5-flash': {'in': 0.30, 'out': 2.50},
-    'gemini-2.5-pro': {'in': 1.25, 'out': 10.00},
-    'gemini-2.5-flash-lite': {'in': 0.10, 'out': 0.40},
-    'gemini-3.1-flash-lite-preview': {'in': 0.25, 'out': 1.50},
-    'gemini-3.1-pro-preview': {'in': 2.00, 'out': 12.00},
+    'models/gemini-2.5-flash': {'in': 0.30, 'out': 2.50},
+    'models/gemini-3.1-pro-preview': {'in': 2.00, 'out': 12.00},
+    'models/gemini-3.5-flash': {'in': 1.50, 'out': 9.00},
 }
 
 google_models = [
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3.1-pro-preview'
+    'models/gemini-2.5-flash',
+    'models/gemini-3.1-pro-preview',
+    'models/gemini-3.5-flash',
 ]
+
+# Model-specific thinking configurations using the unified Google Gen AI SDK
+model_configs = {
+    'models/gemini-2.5-flash': {
+        'thinking_budget': 0,
+    },
+    'models/gemini-3.1-pro-preview': {
+        'thinking_level': 'low',
+    },
+    'models/gemini-3.5-flash': {
+        'thinking_level': 'low',
+    },
+}
 
 print(f"Google models to benchmark: {google_models}")
 
@@ -94,14 +101,12 @@ print(f"{'MODEL':<30} | {'AVG TIME (s)':<12} | {'AVG COST ($)':<12} | {'ACCURATE
 print("-" * 100)
 
 def run_benchmarks():
+    litellm_api_base = os.environ.get('LITELLM_API_BASE')
+    base_url = f"{litellm_api_base.rstrip('/')}/google" if litellm_api_base else None
+
     google_client = Client(
         api_key=API_KEY,
-        http_options=types.HttpOptions(base_url=os.environ.get('GEMINI_API_BASE')),
-    )
-    
-    google_config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=GOOGLE_RESPONSE_SCHEMA,
+        http_options=types.HttpOptions(base_url=base_url),
     )
 
     for model in google_models:
@@ -110,6 +115,22 @@ def run_benchmarks():
             total_cost = 0
             is_accurate = "True"
             correct_count = 0
+
+            # Build model-specific thinking configuration
+            thinking_opts = model_configs.get(model, {})
+            thinking_cfg = None
+            if 'thinking_level' in thinking_opts or 'thinking_budget' in thinking_opts:
+                thinking_cfg = types.ThinkingConfig(
+                    thinking_level=thinking_opts.get('thinking_level'),
+                    thinking_budget=thinking_opts.get('thinking_budget'),
+                    include_thoughts=True
+                )
+
+            google_config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GOOGLE_RESPONSE_SCHEMA,
+                thinking_config=thinking_cfg,
+            )
             
             for tc in test_cases:
                 file_path = Path(tc['file'])
@@ -155,7 +176,16 @@ def run_benchmarks():
                 cost = (in_tokens * pricing[model]['in'] / 1e6) + (out_tokens * pricing[model]['out'] / 1e6)
                 total_cost += cost
                 
-                raw_text = response.candidates[0].content.parts[0].text
+                # Filter out model thought parts and locate the final text response
+                raw_text = ""
+                for part in response.candidates[0].content.parts:
+                    if part.text and not getattr(part, 'thought', False):
+                        raw_text = part.text
+                        break
+
+                if not raw_text:
+                    raise ValueError("No final response text part found in response candidates.")
+
                 if raw_text.startswith('```json'):
                     raw_text = raw_text[7:-3]
                 elif raw_text.startswith('```'):

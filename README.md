@@ -33,3 +33,25 @@ Once the app is running, you can access the frontend at http://localhost:5173. T
 ### Accessing Backend Documentation
 
 Once the app is running, you can access the interactive API documentation at http://localhost:8000/docs. This provides a Swagger UI interface where you can explore and test all available API endpoints.
+
+## Performance & Accuracy Benchmarks
+
+We run automated benchmarks comparing Google (using `google-genai`) and OpenAI (using `litellm`) models on complex visual OCR receipts, measuring accuracy (successful extraction of items/prices/totals), cost, and latency.
+
+### 📊 Google Models Benchmark
+*Configured with the lowest reliable thinking/reasoning settings for maximum speed and cost efficiency.*
+
+| Model | Avg Time (s) | Avg Cost ($) | Accuracy | Config Details |
+| :--- | :---: | :---: | :---: | :--- |
+| **`gemini-2.5-flash`** | 3.33s | $0.000788 | **100%** | `thinking_budget`: 0 (Disabled) |
+| **`gemini-3.1-pro-preview`** | 5.37s | $0.005985 | **100%** | `thinking_level`: `'low'` |
+| **`gemini-3.5-flash`** | 8.01s | $0.004510 | **100%** | `thinking_level`: `'low'` |
+
+### 📊 OpenAI Models Benchmark
+*Configured with the lowest reliable reasoning/thinking effort settings.*
+
+| Model | Avg Time (s) | Avg Cost ($) | Accuracy | Config Details |
+| :--- | :---: | :---: | :---: | :--- |
+| **`gpt-4o`** | 4.28s | $0.004378 | **100%** | Standard autoregressive (No thinking support) |
+| **`gpt-4o-mini`** | 6.17s | $0.003970 | **100%** | Standard autoregressive (No thinking support) |
+| **`gpt-5.4`** | 5.72s | $0.010489 | **100%** | `reasoning_effort`: `'low'` |

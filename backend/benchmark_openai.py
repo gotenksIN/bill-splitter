@@ -12,33 +12,26 @@ litellm.drop_params = True
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.environ.get('OPENAI_API_KEY')
+API_KEY = os.environ.get('LITELLM_API_KEY')
 
 pricing = {
     'gpt-4o': {'in': 2.50, 'out': 10.00},
     'gpt-4o-mini': {'in': 0.15, 'out': 0.60},
-    'gpt-5.1': {'in': 1.25, 'out': 10.00},
-    'gpt-5.2': {'in': 1.75, 'out': 14.00},
-    'gpt-5.3-chat-latest': {'in': 1.75, 'out': 14.00},
-    'gpt-5.4-nano': {'in': 0.50, 'out': 3.00},
-    'gpt-5.4-mini': {'in': 0.75, 'out': 4.50},
-    'gpt-5.4': {'in': 2.00, 'out': 15.00},
-    'gpt-5.4-pro': {'in': 3.00, 'out': 20.00},
-    'o1': {'in': 15.00, 'out': 60.00},
+    'gpt-5.4': {'in': 2.50, 'out': 15.00},
 }
 
 openai_models = [
     'gpt-4o',
     'gpt-4o-mini',
-    'gpt-5.1',
-    'gpt-5.2',
-    'gpt-5.3-chat-latest',
-    'gpt-5.4-nano',
-    'gpt-5.4-mini',
     'gpt-5.4',
-    'gpt-5.4-pro',
-    'o1'
 ]
+
+# Model-specific configurations for OpenAI models
+model_configs = {
+    'gpt-5.4': {
+        'reasoning_effort': 'low',
+    }
+}
 
 print(f"OpenAI models to benchmark: {openai_models}")
 
@@ -134,14 +127,21 @@ def run_benchmarks():
                 start = time.time()
                 for attempt in range(3):
                     try:
+                        litellm_api_base = os.environ.get('LITELLM_API_BASE')
+                        api_base = f"{litellm_api_base.rstrip('/')}/openai" if litellm_api_base else None
+
                         response_kwargs = {
                             'model': model,
                             'messages': openai_messages,
-                            'api_base': f"{os.environ.get('OPENAI_API_BASE')}/v1",
+                            'api_base': f"{api_base}/v1" if api_base else None,
                         }
 
                         if not model.startswith('o'):
                             response_kwargs['response_format'] = OPENAI_RESPONSE_FORMAT
+
+                        config_opts = model_configs.get(model, {})
+                        if 'reasoning_effort' in config_opts:
+                            response_kwargs['reasoning_effort'] = config_opts['reasoning_effort']
 
                         response = litellm.completion(**response_kwargs)
                         break
