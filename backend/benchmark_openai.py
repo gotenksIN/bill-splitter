@@ -2,33 +2,45 @@ import time
 import json
 import re
 from pathlib import Path
+import litellm
 import os
-from google.genai import Client, types
+import base64
+from pydantic import BaseModel
+
+litellm.drop_params = True
 
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.environ.get('GEMINI_API_KEY')
+API_KEY = os.environ.get('OPENAI_API_KEY')
 
 pricing = {
-    'gemini-2.0-flash': {'in': 0.10, 'out': 0.40},
-    'gemini-2.5-flash': {'in': 0.30, 'out': 2.50},
-    'gemini-2.5-pro': {'in': 1.25, 'out': 10.00},
-    'gemini-2.5-flash-lite': {'in': 0.10, 'out': 0.40},
-    'gemini-3.1-flash-lite-preview': {'in': 0.25, 'out': 1.50},
-    'gemini-3.1-pro-preview': {'in': 2.00, 'out': 12.00},
+    'gpt-4o': {'in': 2.50, 'out': 10.00},
+    'gpt-4o-mini': {'in': 0.15, 'out': 0.60},
+    'gpt-5.1': {'in': 1.25, 'out': 10.00},
+    'gpt-5.2': {'in': 1.75, 'out': 14.00},
+    'gpt-5.3-chat-latest': {'in': 1.75, 'out': 14.00},
+    'gpt-5.4-nano': {'in': 0.50, 'out': 3.00},
+    'gpt-5.4-mini': {'in': 0.75, 'out': 4.50},
+    'gpt-5.4': {'in': 2.00, 'out': 15.00},
+    'gpt-5.4-pro': {'in': 3.00, 'out': 20.00},
+    'o1': {'in': 15.00, 'out': 60.00},
 }
 
-google_models = [
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3.1-pro-preview'
+openai_models = [
+    'gpt-4o',
+    'gpt-4o-mini',
+    'gpt-5.1',
+    'gpt-5.2',
+    'gpt-5.3-chat-latest',
+    'gpt-5.4-nano',
+    'gpt-5.4-mini',
+    'gpt-5.4',
+    'gpt-5.4-pro',
+    'o1'
 ]
 
-print(f"Google models to benchmark: {google_models}")
+print(f"OpenAI models to benchmark: {openai_models}")
 
 BILL_OCR_PROMPT = """
 You are an expert at analyzing receipts and bills.
@@ -47,27 +59,19 @@ Analyze the bill image and extract the information accurately.
 Return ONLY valid JSON. Do not include markdown formatting.
 """
 
-GOOGLE_RESPONSE_SCHEMA = types.Schema(
-    type=types.Type.OBJECT,
-    properties={
-        'tax_rate': types.Schema(type=types.Type.NUMBER),
-        'service_charge': types.Schema(type=types.Type.NUMBER),
-        'amount_paid': types.Schema(type=types.Type.NUMBER),
-        'items': types.Schema(
-            type=types.Type.ARRAY,
-            items=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    'name': types.Schema(type=types.Type.STRING),
-                    'price': types.Schema(type=types.Type.NUMBER),
-                    'quantity': types.Schema(type=types.Type.NUMBER),
-                },
-                required=['name', 'price', 'quantity'],
-            ),
-        ),
-    },
-    required=['items', 'amount_paid', 'tax_rate', 'service_charge'],
-)
+class Item(BaseModel):
+    name: str
+    price: float
+    quantity: int
+
+class OCRBill(BaseModel):
+    items: list[Item]
+    tax_rate: float
+    service_charge: float
+    amount_paid: float
+
+
+OPENAI_RESPONSE_FORMAT = OCRBill
 
 test_cases = [
     {
@@ -94,17 +98,9 @@ print(f"{'MODEL':<30} | {'AVG TIME (s)':<12} | {'AVG COST ($)':<12} | {'ACCURATE
 print("-" * 100)
 
 def run_benchmarks():
-    google_client = Client(
-        api_key=API_KEY,
-        http_options=types.HttpOptions(base_url=os.environ.get('GEMINI_API_BASE')),
-    )
-    
-    google_config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=GOOGLE_RESPONSE_SCHEMA,
-    )
+    os.environ['OPENAI_API_KEY'] = API_KEY
 
-    for model in google_models:
+    for model in openai_models:
         try:
             total_time = 0
             total_cost = 0
@@ -112,25 +108,42 @@ def run_benchmarks():
             correct_count = 0
             
             for tc in test_cases:
-                image_bytes = Path(tc['file']).read_bytes()
-                google_contents = [
-                    types.Content(
-                        role='user',
-                        parts=[
-                            types.Part.from_text(text=BILL_OCR_PROMPT),
-                            types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
-                        ],
-                    ),
+                file_path = Path(tc['file'])
+                if not file_path.exists():
+                    file_path = Path(__file__).parent / tc['file']
+                if not file_path.exists():
+                    file_path = Path(__file__).parent.parent / tc['file']
+                image_bytes = file_path.read_bytes()
+                b64_image = base64.b64encode(image_bytes).decode('utf-8')
+                
+                openai_messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": BILL_OCR_PROMPT},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{b64_image}"
+                                }
+                            }
+                        ]
+                    }
                 ]
                 
                 start = time.time()
                 for attempt in range(3):
                     try:
-                        response = google_client.models.generate_content(
-                            model=model,
-                            contents=google_contents,
-                            config=google_config
-                        )
+                        response_kwargs = {
+                            'model': model,
+                            'messages': openai_messages,
+                            'api_base': f"{os.environ.get('OPENAI_API_BASE')}/v1",
+                        }
+
+                        if not model.startswith('o'):
+                            response_kwargs['response_format'] = OPENAI_RESPONSE_FORMAT
+
+                        response = litellm.completion(**response_kwargs)
                         break
                     except Exception as e:
                         if attempt == 2:
@@ -139,26 +152,20 @@ def run_benchmarks():
                 elapsed = time.time() - start
                 total_time += elapsed
                 
-                usage = getattr(response, 'usage_metadata', None)
-                if usage is not None:
-                    in_tokens = getattr(usage, 'prompt_token_count', 0)
-                    out_tokens = getattr(usage, 'candidates_token_count', 0)
-                else:
-                    in_tokens = 0
-                    out_tokens = 0
-
+                in_tokens = response.usage.prompt_tokens if response.usage else 0
+                out_tokens = response.usage.completion_tokens if response.usage else 0
                 cost = (in_tokens * pricing[model]['in'] / 1e6) + (out_tokens * pricing[model]['out'] / 1e6)
                 total_cost += cost
                 
-                raw_text = response.candidates[0].content.parts[0].text
-                if raw_text.startswith('```json'):
-                    raw_text = raw_text[7:-3]
-                elif raw_text.startswith('```'):
-                    raw_text = raw_text[3:-3]
+                raw_content = response.choices[0].message.content
+                if raw_content.startswith('```json'):
+                    raw_content = raw_content[7:-3]
+                elif raw_content.startswith('```'):
+                    raw_content = raw_content[3:-3]
                 
-                raw_text = re.sub(r',\s*([\]}])', r'\1', raw_text)
-
-                data = json.loads(raw_text)
+                raw_content = re.sub(r',\s*([\]}])', r'\1', raw_content)
+                    
+                data = json.loads(raw_content)
                 items = data.get('items', [])
                 actual_items = sorted([(float(i.get('price', 0)), int(i.get('quantity', 0))) for i in items])
                 actual_amount = float(data.get('amount_paid', 0))
@@ -175,7 +182,7 @@ def run_benchmarks():
                 else:
                     correct_count += 1
                 time.sleep(2)
-            
+                    
             avg_time = total_time / len(test_cases)
             avg_cost = total_cost / len(test_cases)
             accuracy_pct = (correct_count / len(test_cases)) * 100

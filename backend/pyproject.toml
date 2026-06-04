@@ -10,7 +10,8 @@ authors = [
 
 dependencies = [
     "fastapi[all]>=0.124.0",
-    "litellm==1.83.4",
+    "google-genai>=2.8.0",
+    "litellm>=1.87.0",
 ]
 
 [dependency-groups]
